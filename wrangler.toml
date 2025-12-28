@@ -1,0 +1,23 @@
+name = "auth-backend"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+node_compat = true
+
+[vars]
+ENVIRONMENT = "development"
+
+# Secrets (don't commit these!)
+# Add via: wrangler secret put SECRET_NAME
+# Required secrets:
+# - SUPABASE_URL
+# - SUPABASE_ANON_KEY
+# - SUPABASE_SERVICE_ROLE_KEY
+# - JWT_SECRET
+# - FRONTEND_URL
+# Optional (for OAuth):
+# - GOOGLE_CLIENT_ID
+# - GOOGLE_CLIENT_SECRET
+# - APPLE_CLIENT_ID
+# - APPLE_TEAM_ID
+# - APPLE_KEY_ID
+# - APPLE_PRIVATE_KEY

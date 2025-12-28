@@ -15,6 +15,7 @@ interface CloudflareEnv {
     APPLE_PRIVATE_KEY?: string;
     FRONTEND_URL: string;
     ENVIRONMENT: "development" | "staging" | "production";
+    [key: string]: string | undefined;
 }
 
 export default {
@@ -37,7 +38,7 @@ export default {
 
             // Handle the request
             const response = await app.inject({
-                method: request.method,
+                method: request.method as any,
                 url: url.pathname + url.search,
                 headers: Object.fromEntries(request.headers.entries()),
                 payload: request.body ? await request.text() : undefined,

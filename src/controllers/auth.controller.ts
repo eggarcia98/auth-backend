@@ -15,11 +15,10 @@ export class AuthController {
         private readonly oauthService: OAuthService
     ) {}
 
-    async signup(
-        request: FastifyRequest<{ Body: SignupRequest }>,
-        reply: FastifyReply
-    ): Promise<void> {
-        const result = await this.authService.signup(request.body);
+    async signup(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+        const result = await this.authService.signup(
+            request.body as SignupRequest
+        );
 
         reply.status(201).send({
             success: true,
@@ -27,11 +26,10 @@ export class AuthController {
         } as ApiResponse);
     }
 
-    async login(
-        request: FastifyRequest<{ Body: LoginRequest }>,
-        reply: FastifyReply
-    ): Promise<void> {
-        const result = await this.authService.login(request.body);
+    async login(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+        const result = await this.authService.login(
+            request.body as LoginRequest
+        );
 
         reply.send({
             success: true,
@@ -40,10 +38,11 @@ export class AuthController {
     }
 
     async loginWithOTP(
-        request: FastifyRequest<{ Body: { email: string } }>,
+        request: FastifyRequest,
         reply: FastifyReply
     ): Promise<void> {
-        await this.authService.loginWithOTP(request.body.email);
+        const { email } = request.body as { email: string };
+        await this.authService.loginWithOTP(email);
 
         reply.send({
             success: true,
@@ -52,13 +51,14 @@ export class AuthController {
     }
 
     async verifyOTP(
-        request: FastifyRequest<{ Body: { email: string; token: string } }>,
+        request: FastifyRequest,
         reply: FastifyReply
     ): Promise<void> {
-        const result = await this.authService.verifyOTP(
-            request.body.email,
-            request.body.token
-        );
+        const { email, token } = request.body as {
+            email: string;
+            token: string;
+        };
+        const result = await this.authService.verifyOTP(email, token);
 
         reply.send({
             success: true,
@@ -67,12 +67,11 @@ export class AuthController {
     }
 
     async refreshToken(
-        request: FastifyRequest<{ Body: { refreshToken: string } }>,
+        request: FastifyRequest,
         reply: FastifyReply
     ): Promise<void> {
-        const result = await this.authService.refreshToken(
-            request.body.refreshToken
-        );
+        const { refreshToken } = request.body as { refreshToken: string };
+        const result = await this.authService.refreshToken(refreshToken);
 
         reply.send({
             success: true,
@@ -91,10 +90,11 @@ export class AuthController {
     }
 
     async requestPasswordReset(
-        request: FastifyRequest<{ Body: { email: string } }>,
+        request: FastifyRequest,
         reply: FastifyReply
     ): Promise<void> {
-        await this.authService.requestPasswordReset(request.body.email);
+        const { email } = request.body as { email: string };
+        await this.authService.requestPasswordReset(email);
 
         reply.send({
             success: true,
@@ -103,11 +103,12 @@ export class AuthController {
     }
 
     async resetPassword(
-        request: FastifyRequest<{ Body: { password: string } }>,
+        request: FastifyRequest,
         reply: FastifyReply
     ): Promise<void> {
         const token = request.headers.authorization?.substring(7) || "";
-        await this.authService.resetPassword(token, request.body.password);
+        const { password } = request.body as { password: string };
+        await this.authService.resetPassword(token, password);
 
         reply.send({
             success: true,
@@ -116,12 +117,11 @@ export class AuthController {
     }
 
     async getOAuthUrl(
-        request: FastifyRequest<{ Params: { provider: OAuthProvider } }>,
+        request: FastifyRequest,
         reply: FastifyReply
     ): Promise<void> {
-        const url = await this.oauthService.getAuthorizationUrl(
-            request.params.provider
-        );
+        const { provider } = request.params as { provider: OAuthProvider };
+        const url = await this.oauthService.getAuthorizationUrl(provider);
 
         reply.send({
             success: true,
@@ -130,16 +130,12 @@ export class AuthController {
     }
 
     async handleOAuthCallback(
-        request: FastifyRequest<{
-            Params: { provider: OAuthProvider };
-            Body: OAuthCallbackRequest;
-        }>,
+        request: FastifyRequest,
         reply: FastifyReply
     ): Promise<void> {
-        const result = await this.oauthService.handleCallback(
-            request.params.provider,
-            request.body.code
-        );
+        const { provider } = request.params as { provider: OAuthProvider };
+        const { code } = request.body as OAuthCallbackRequest;
+        const result = await this.oauthService.handleCallback(provider, code);
 
         reply.send({
             success: true,

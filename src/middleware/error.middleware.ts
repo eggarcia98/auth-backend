@@ -1,36 +1,62 @@
-import type { FastifyRequest, FastifyReply } from "fastify";
-import { AuthService } from "../services/auth.service.js";
-import { UnauthorizedError } from "../utils/errors.js";
+import type { FastifyError, FastifyRequest, FastifyReply } from "fastify";
+import { AppError } from "../utils/errors.js";
+import { logger } from "../utils/logger.js";
+import { ZodError } from "zod";
 
-declare module "fastify" {
-    interface FastifyRequest {
-        user?: {
-            id: string;
-            email: string;
-        };
+export async function errorHandler(
+    error: FastifyError,
+    request: FastifyRequest,
+    reply: FastifyReply
+): Promise<void> {
+    // Log error
+    logger.error("Request error", error, {
+        path: request.url,
+        method: request.method,
+    });
+
+    // Handle Zod validation errors
+    if (error instanceof ZodError) {
+        reply.status(400).send({
+            success: false,
+            error: {
+                message: "Validation failed",
+                code: "VALIDATION_ERROR",
+                details: error.errors,
+            },
+        });
+        return;
     }
-}
 
-export function createAuthMiddleware(authService: AuthService) {
-    return async (request: FastifyRequest, reply: FastifyReply) => {
-        try {
-            const authHeader = request.headers.authorization;
+    // Handle custom app errors
+    if (error instanceof AppError) {
+        reply.status(error.statusCode).send({
+            success: false,
+            error: {
+                message: error.message,
+                code: error.code,
+            },
+        });
+        return;
+    }
 
-            if (!authHeader || !authHeader.startsWith("Bearer ")) {
-                throw new UnauthorizedError(
-                    "Missing or invalid authorization header"
-                );
-            }
+    // Handle Fastify errors
+    if (error.statusCode) {
+        reply.status(error.statusCode).send({
+            success: false,
+            error: {
+                message: error.message,
+                code: "REQUEST_ERROR",
+            },
+        });
+        return;
+    }
 
-            const token = authHeader.substring(7);
-            const user = await authService.verifyToken(token);
-
-            request.user = {
-                id: user.id,
-                email: user.email,
-            };
-        } catch (error) {
-            throw new UnauthorizedError("Invalid or expired token");
-        }
-    };
+    // Handle unknown errors
+    reply.status(500).send({
+        success: false,
+        error: {
+            message: "Internal server error",
+            code: "INTERNAL_ERROR",
+        },
+    });
 }

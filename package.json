@@ -8,7 +8,9 @@
         "dev": "wrangler dev",
         "deploy": "wrangler deploy",
         "build": "tsc",
-        "test": "vitest"
+        "test": "vitest",
+        "type-check": "tsc --noEmit",
+        "start:local": "tsx watch src/index.ts"
     },
     "keywords": [],
     "author": "",

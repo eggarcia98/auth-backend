@@ -1,4 +1,7 @@
-import { SupabaseClient } from "@supabase/supabase-js";
+import {
+    AuthTokenResponsePassword,
+    SupabaseClient,
+} from "@supabase/supabase-js";
 import type {
     AuthResponse,
     LoginRequest,
@@ -35,7 +38,7 @@ export class AuthService {
                 throw new ValidationError(error.message);
             }
 
-            if (!data.user || !data.session) {
+            if (!data?.user || !data?.session) {
                 throw new ValidationError("Failed to create user");
             }
 
@@ -44,7 +47,8 @@ export class AuthService {
                 email: request.email,
             });
 
-            return this.mapAuthResponse(data);
+            const { user, session } = data;
+            return this.mapAuthResponse({ user, session });
         } catch (error) {
             logger.error("Signup failed", error as Error, {
                 email: request.email,
@@ -66,7 +70,7 @@ export class AuthService {
                 throw new UnauthorizedError("Invalid email or password");
             }
 
-            if (!data.user || !data.session) {
+            if (!data?.user || !data?.session) {
                 throw new UnauthorizedError("Invalid email or password");
             }
 
@@ -115,13 +119,14 @@ export class AuthService {
                 throw new UnauthorizedError("Invalid or expired OTP");
             }
 
-            if (!data.user || !data.session) {
+            if (!data?.user || !data?.session) {
                 throw new UnauthorizedError("Invalid or expired OTP");
             }
 
             logger.info("OTP verified successfully", { userId: data.user.id });
 
-            return this.mapAuthResponse(data);
+            const { user, session } = data;
+            return this.mapAuthResponse({ user, session });
         } catch (error) {
             logger.error("OTP verification failed", error as Error, { email });
             throw error;
@@ -134,7 +139,7 @@ export class AuthService {
                 refresh_token: refreshToken,
             });
 
-            if (error || !data.session) {
+            if (error || !data?.session || !data?.user) {
                 throw new UnauthorizedError("Invalid refresh token");
             }
 
@@ -142,7 +147,8 @@ export class AuthService {
                 userId: data.user?.id,
             });
 
-            return this.mapAuthResponse(data);
+            const { user, session } = data;
+            return this.mapAuthResponse({ user, session });
         } catch (error) {
             logger.error("Token refresh failed", error as Error);
             throw error;
@@ -216,14 +222,13 @@ export class AuthService {
         }
     }
 
-    private mapAuthResponse(data: {
-        user: { id: string; email?: string; [key: string]: unknown };
-        session: {
-            access_token: string;
-            refresh_token: string;
-            expires_in: number;
-        };
-    }): AuthResponse {
+    private mapAuthResponse(
+        data: AuthTokenResponsePassword["data"]
+    ): AuthResponse {
+        if (!data.user || !data.session) {
+            throw new UnauthorizedError("Invalid authentication data");
+        }
+
         return {
             user: this.mapUser(data.user),
             tokens: {

@@ -1,0 +1,36 @@
+export interface User {
+    id: string;
+    email: string;
+    emailVerified: boolean;
+    provider: "email" | "google" | "apple";
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface AuthTokens {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+}
+
+export interface AuthResponse {
+    user: User;
+    tokens: AuthTokens;
+}
+
+export interface LoginRequest {
+    email: string;
+    password: string;
+}
+
+export interface SignupRequest {
+    email: string;
+    password: string;
+}
+
+export interface OAuthCallbackRequest {
+    code: string;
+    state?: string;
+}
+
+export type OAuthProvider = "google" | "apple";

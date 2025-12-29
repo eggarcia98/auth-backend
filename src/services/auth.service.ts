@@ -23,7 +23,7 @@ export class AuthService {
 
     async signup(request: SignupRequest): Promise<AuthResponse> {
         try {
-            const { data, error } = await this.supabase.auth.signUp({
+            const res = await this.supabase.auth.signUp({
                 email: request.email,
                 password: request.password,
                 options: {
@@ -31,6 +31,11 @@ export class AuthService {
                 },
             });
 
+            console.log(" SIGNUP RES ", res);
+
+            const { data, error } = res;
+
+            console.log(" SIGNUP ERROR ", this.supabase.functions, error, data);
             if (error) {
                 if (error.message.includes("already registered")) {
                     throw new ConflictError("Email already registered");
@@ -38,10 +43,23 @@ export class AuthService {
                 throw new ValidationError(error.message);
             }
 
-            if (!data?.user || !data?.session) {
+            if (!data?.user) {
                 throw new ValidationError("Failed to create user");
             }
 
+            // If email confirmation is required, session will be null
+            if (!data.session) {
+                logger.info("User signed up, email confirmation required", {
+                    userId: data.user.id,
+                    email: request.email,
+                });
+
+                const { user, session} = data;
+
+                return this.mapAuthResponse({ user, session } as any, true);
+            }
+
+            // Email confirmation disabled, return full auth response
             logger.info("User signed up successfully", {
                 userId: data.user.id,
                 email: request.email,
@@ -50,6 +68,7 @@ export class AuthService {
             const { user, session } = data;
             return this.mapAuthResponse({ user, session });
         } catch (error) {
+            console.log(" SIGNUP ERROR CATCH ", error);
             logger.error("Signup failed", error as Error, {
                 email: request.email,
             });
@@ -223,18 +242,19 @@ export class AuthService {
     }
 
     private mapAuthResponse(
-        data: AuthTokenResponsePassword["data"]
+        data: AuthTokenResponsePassword["data"],
+        isSigningUp = false
     ): AuthResponse {
-        if (!data.user || !data.session) {
+        if (!data.user || (!data.session && !isSigningUp)) {
             throw new UnauthorizedError("Invalid authentication data");
         }
 
         return {
             user: this.mapUser(data.user),
             tokens: {
-                accessToken: data.session.access_token,
-                refreshToken: data.session.refresh_token,
-                expiresIn: data.session.expires_in,
+                accessToken: data?.session?.access_token,
+                refreshToken: data?.session?.refresh_token,
+                expiresIn: data?.session?.expires_in,
             },
         };
     }

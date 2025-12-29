@@ -16,6 +16,8 @@ export interface AuthTokens {
 export interface AuthResponse {
     user: User;
     tokens: AuthTokens;
+    message?: string;
+    email?: string;
 }
 
 export interface LoginRequest {

@@ -11,7 +11,7 @@ export async function errorHandler(
     // Log error
     logger.error("Request error", error, {
         path: request.url,
-        method: request.method,
+        method: "request.method",
     });
 
     // Handle Zod validation errors

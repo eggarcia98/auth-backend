@@ -23,7 +23,6 @@ export function validateEnvironment(env: Record<string, unknown>): Environment {
     try {
         return envSchema.parse(env);
     } catch (error) {
-        console.log(" ERROR ENV VARS")
         if (error instanceof z.ZodError) {
             const issues = error.issues.map(
                 (i) => `${i.path.join(".")}: ${i.message}`

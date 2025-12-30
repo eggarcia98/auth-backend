@@ -31,11 +31,8 @@ export class AuthService {
                 },
             });
 
-            console.log(" SIGNUP RES ", res);
-
             const { data, error } = res;
 
-            console.log(" SIGNUP ERROR ", this.supabase.functions, error, data);
             if (error) {
                 if (error.message.includes("already registered")) {
                     throw new ConflictError("Email already registered");
@@ -68,7 +65,6 @@ export class AuthService {
             const { user, session } = data;
             return this.mapAuthResponse({ user, session });
         } catch (error) {
-            console.log(" SIGNUP ERROR CATCH ", error);
             logger.error("Signup failed", error as Error, {
                 email: request.email,
             });

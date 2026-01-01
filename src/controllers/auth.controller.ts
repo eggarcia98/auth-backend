@@ -85,8 +85,32 @@ export class AuthController {
         request: FastifyRequest,
         reply: FastifyReply
     ): Promise<void> {
-        const { refreshToken } = request.body as { refreshToken: string };
+        const refreshToken = request.cookies.refreshToken;
+        
+        if (!refreshToken) {
+            reply.status(401).send({
+                success: false,
+                error: "No refresh token provided",
+            });
+            return;
+        }
+
         const result = await this.authService.refreshToken(refreshToken);
+
+        // Set new tokens in cookies
+        reply.setCookie("accessToken", result.tokens.accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: result.tokens.expiresIn,
+        });
+
+        reply.setCookie("refreshToken", result.tokens.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
 
         reply.send({
             success: true,
@@ -97,6 +121,10 @@ export class AuthController {
     async logout(request: FastifyRequest, reply: FastifyReply): Promise<void> {
         const token = request.headers.authorization?.substring(7) || "";
         await this.authService.logout(token);
+
+        // Clear cookies
+        reply.clearCookie("accessToken");
+        reply.clearCookie("refreshToken");
 
         reply.send({
             success: true,

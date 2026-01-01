@@ -31,9 +31,24 @@ export class AuthController {
             request.body as LoginRequest
         );
 
+        // Set tokens in cookies
+        reply.setCookie("accessToken", result.tokens.accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: result.tokens.expiresIn,
+        });
+
+        reply.setCookie("refreshToken", result.tokens.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+
         reply.send({
             success: true,
-            data: result,
+            message: "Login successful, tokens set in cookies",
         } as ApiResponse);
     }
 

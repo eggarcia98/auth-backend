@@ -1,5 +1,6 @@
 import Fastify, { FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
+import cookiePlugin from "@fastify/cookie";
 import { errorHandler } from "./middleware/error.middleware.js";
 import { registerRoutes } from "./routes/index.js";
 import { validateEnvironment, type Environment } from "./config/environment.js";
@@ -27,6 +28,9 @@ export async function createApp(config: AppConfig): Promise<FastifyInstance> {
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     });
+
+    // Register cookie plugin
+    await fastify.register(cookiePlugin);
 
     // Set error handler
     fastify.setErrorHandler(errorHandler);

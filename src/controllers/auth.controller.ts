@@ -31,6 +31,8 @@ export class AuthController {
             request.body as LoginRequest
         );
 
+        console.log("LOGIN result:", result);
+
         // Set tokens in cookies
         reply.setCookie("accessToken", result.tokens.accessToken, {
             httpOnly: true,

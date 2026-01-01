@@ -74,12 +74,19 @@ export class AuthService {
 
     async login(request: LoginRequest): Promise<AuthResponse> {
         try {
+
+            console.log("Attempting login for email:", request.email);
+            console.log("Request object:", request.password);
             const { data, error } = await this.supabase.auth.signInWithPassword(
                 {
                     email: request.email,
                     password: request.password,
                 }
             );
+
+            console.log("Supabase response data:", data);
+            console.log("Supabase response error:", error);
+
 
             if (error) {
                 throw new UnauthorizedError("Invalid email or password");

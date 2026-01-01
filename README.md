@@ -367,48 +367,6 @@ pnpm test --coverage
 
 See [tests/README.md](tests/README.md) for detailed testing documentation.
 
-## Project Structure
-
-```
-auth-backend/
-├── src/
-│   ├── config/           # Configuration files
-│   │   ├── environment.ts
-│   │   └── supabase.ts
-│   ├── controllers/      # Route controllers
-│   │   └── auth.controller.ts
-│   ├── middleware/       # Custom middleware
-│   │   ├── auth.middleware.ts
-│   │   ├── error.middleware.ts
-│   │   └── validation.middleware.ts
-│   ├── routes/          # API routes
-│   │   ├── auth.routes.ts
-│   │   └── index.ts
-│   ├── schemas/         # Zod validation schemas
-│   │   └── auth.schemas.ts
-│   ├── services/        # Business logic
-│   │   ├── auth.service.ts
-│   │   └── oauth.service.ts
-│   ├── types/           # TypeScript types
-│   │   ├── api.types.ts
-│   │   └── auth.types.ts
-│   ├── utils/           # Utility functions
-│   │   ├── errors.ts
-│   │   └── logger.ts
-│   ├── app.ts           # Fastify app setup
-│   └── server.ts        # Server entry point
-├── tests/               # Test files
-│   ├── setup.ts
-│   ├── helpers.ts
-│   ├── auth.routes.test.ts
-│   └── README.md
-├── .env.example         # Environment template
-├── Dockerfile           # Docker configuration
-├── tsconfig.json        # TypeScript config
-├── vitest.config.ts     # Test configuration
-└── wrangler.toml        # Cloudflare Workers config
-```
-
 ## Docker Deployment
 
 Build and run with Docker:
@@ -420,32 +378,6 @@ docker build -t auth-backend .
 # Run container
 docker run -p 3000:3000 --env-file .env auth-backend
 ```
-
-## Cloudflare Workers Deployment
-
-Set required secrets:
-
-```bash
-wrangler secret put SUPABASE_URL
-wrangler secret put SUPABASE_ANON_KEY
-wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-```
-
-Deploy to Cloudflare Workers:
-
-```bash
-wrangler deploy
-```
-
-## Security Features
-
-- 🔒 **HTTP-Only Cookies** - Tokens stored securely, not accessible via JavaScript
-- 🛡️ **CSRF Protection** - SameSite cookie policy
-- 🔐 **Secure Cookies** - HTTPS-only in production
-- ✅ **Input Validation** - All inputs validated with Zod schemas
-- 🔑 **Password Requirements** - Strong password enforcement
-- 📝 **Error Handling** - No sensitive data leaked in error messages
-- 🚫 **CORS** - Configurable cross-origin policy
 
 ## Error Handling
 

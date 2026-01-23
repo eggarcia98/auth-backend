@@ -1,0 +1,32 @@
+name: Deploy to Ubuntu
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.APP_DIR }}
+            git fetch --all
+            git reset --hard origin/main
+
+            # If you have Node:
+            if [ -f package.json ]; then
+              pnpm -v >/dev/null 2>&1 || npm i -g pnpm
+              pnpm install --frozen-lockfile || pnpm install
+              pnpm run build || true
+            fi
+
+            # Example restart (choose ONE that matches your setup)
+            # sudo systemctl restart myapp
+            # docker compose up -d --build

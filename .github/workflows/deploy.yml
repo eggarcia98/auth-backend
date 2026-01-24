@@ -7,26 +7,34 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            set -e
-            cd ${{ secrets.APP_DIR }}
-            git fetch --all
-            git reset --hard origin/main
+      - name: Install cloudflared
+        run: |
+          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared-linux-amd64.deb
 
-            # If you have Node:
-            if [ -f package.json ]; then
-              pnpm -v >/dev/null 2>&1 || npm i -g pnpm
-              pnpm install --frozen-lockfile || pnpm install
-              pnpm run build || true
-            fi
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
 
-            # Example restart (choose ONE that matches your setup)
-            # sudo systemctl restart myapp
-            # docker compose up -d --build
+      - name: Add SSH config for Cloudflare Tunnel
+        run: |
+          cat <<EOF >> ~/.ssh/config
+          Host ssh.ecuaseas.uk
+            User ubuntu
+            ProxyCommand cloudflared access ssh \
+              --hostname %h \
+              --service-token-id ${{ secrets.CF_ACCESS_CLIENT_ID }} \
+              --service-token-secret ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          EOF
+
+      - name: Deploy
+        run: |
+          ssh -o StrictHostKeyChecking=no ssh.ecuaseas.uk << 'EOF'
+            cd /home/ubuntu/apps/myapp
+            git pull
+            docker compose up -d --build
+          EOF

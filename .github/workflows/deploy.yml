@@ -53,11 +53,14 @@ jobs:
       - name: Deploy
         env:
           SSH_USER: ${{ secrets.SSH_USER }}
+          APP_DIR: ${{ secrets.APP_DIR }}
         run: |
-          ssh -o StrictHostKeyChecking=no -p 2222 "$SSH_USER@127.0.0.1" << 'EOF'
+          ssh -o StrictHostKeyChecking=no -p 2222 "$SSH_USER@127.0.0.1" << EOF
             set -e
-            cd ${{ secrets.APP_DIR }}
+            cd "$APP_DIR"
             git pull
             pnpm install
-            pnpm run dev 
+            pm2 restart auth-backend || pm2 start pnpm --name auth-backend -- run dev
+            pm2 save
+            pm2 status auth-backend
           EOF

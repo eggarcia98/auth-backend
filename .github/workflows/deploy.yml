@@ -9,19 +9,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install cloudflared
+      - name: Install cloudflared (GithubSide)
         run: |
           wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared-linux-amd64.deb
           cloudflared --version
 
-      - name: Setup SSH key
+      - name: Setup SSH key (GithubSide)
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
-      - name: Start Cloudflare Access TCP forward (background)
+      - name: Start Cloudflare Access TCP forward (GithubSide)
         env:
           CF_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
@@ -44,13 +44,7 @@ jobs:
           # Show logs if it didn't start
           (echo > /dev/tcp/127.0.0.1/2222) >/dev/null 2>&1 || (echo "cloudflared failed:" && tail -n 200 /tmp/cloudflared.log && exit 1)
 
-      - name: Test SSH via localhost forward
-        env:
-          SSH_USER: ${{ secrets.SSH_USER }}
-        run: |
-          ssh -vvv -o StrictHostKeyChecking=no -p 2222 "$SSH_USER@127.0.0.1" "echo SSH_OK && hostname"
-
-      - name: Pull and Deploy latest code on server
+      - name: Pull and Deploy latest code on server (CloudServerSide)
         env:
           SSH_USER: ${{ secrets.SSH_USER }}
           APP_DIR: ${{ secrets.APP_DIR }}

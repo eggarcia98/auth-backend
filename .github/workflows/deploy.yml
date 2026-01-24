@@ -56,7 +56,7 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -p 2222 "$SSH_USER@127.0.0.1" << 'EOF'
             set -e
-            cd /home/ubuntu/apps/myapp
+            cd ${{ secrets.APP_DIR }}
             git pull
             docker compose up -d --build
           EOF

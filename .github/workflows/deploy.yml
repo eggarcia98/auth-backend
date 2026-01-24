@@ -9,32 +9,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install cloudflared
-        run: |
-          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-          sudo dpkg -i cloudflared-linux-amd64.deb
+    - name: Install cloudflared
+      run: |
+        wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+        sudo dpkg -i cloudflared-linux-amd64.deb
+        cloudflared --version
 
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+    - name: Setup SSH key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
 
-      - name: Add SSH config for Cloudflare Tunnel
-        run: |
-          cat <<EOF >> ~/.ssh/config
-          Host ssh.ecuaseas.uk
-            User ubuntu
-            ProxyCommand cloudflared access ssh \
-              --hostname %h \
-              --service-token-id ${{ secrets.CF_ACCESS_CLIENT_ID }} \
-              --service-token-secret ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
-          EOF
+    - name: Configure SSH for Cloudflare Access
+      env:
+        CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+        CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+      run: |
+        cat > ~/.ssh/config <<EOF
+        Host ${{ secrets.SSH_HOST }}
+          HostName ${{ secrets.SSH_HOST }}
+          User ${{ secrets.SSH_USER }}
+          Port 22
+          StrictHostKeyChecking no
+          ProxyCommand cloudflared access ssh --hostname %h --port %p
+        EOF
 
-      - name: Deploy
-        run: |
-          ssh -o StrictHostKeyChecking=no ssh.ecuaseas.uk << 'EOF'
-            cd /home/ubuntu/apps/myapp
-            git pull
-            docker compose up -d --build
-          EOF
+    - name: Test SSH
+      env:
+        CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+        CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+      run: |
+        ssh -vvv ${{ secrets.SSH_HOST }} "echo SSH_OK && hostname"
+
+    # - name: Deploy
+    #   env:
+    #     CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+    #     CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+    #   run: |
+    #     ssh ${{ secrets.SSH_HOST }} << 'EOF'
+    #       set -e
+    #       cd /home/ubuntu/apps/myapp
+    #       git pull
+    #       docker compose up -d --build
+    #     EOF

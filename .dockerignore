@@ -1,12 +1,44 @@
-node_modules
-pnpm-lock.yaml
-npm-debug.log
-.git
-.gitignore
-.vscode
-.dist
-coverage
-dist
-wrangler.toml
-.dev.vars
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Tests
+tests/
+*.test.ts
+*.spec.ts
+coverage/
+
+# Development files
 .env
+.env.local
+.env.*.local
+.dev.vars
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+docker-compose.yml
+.dockerignore
+
+# CI/CD
+.github/
+
+# Cloudflare Workers
+wrangler.toml
+
+# Misc
+.DS_Store
+README.md

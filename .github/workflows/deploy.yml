@@ -21,7 +21,7 @@ jobs:
           echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
-      - name: Configure SSH for Cloudflare Access
+      - name: Configure SSH for Cloudflare Access (hard reset env)
         env:
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
@@ -32,12 +32,14 @@ jobs:
             User ${{ secrets.SSH_USER }}
             Port 22
             StrictHostKeyChecking no
-            ProxyCommand cloudflared access tcp --hostname %h --url 127.0.0.1:0 --service-token-id $CF_ACCESS_CLIENT_ID --service-token-secret $CF_ACCESS_CLIENT_SECRET
+            ProxyCommand env -u TUNNEL_SERVICE_URL -u TUNNEL_SERVICE_HOSTNAME -u TUNNEL_SERVICE_DESTINATION cloudflared access tcp --hostname %h --service-token-id $CF_ACCESS_CLIENT_ID --service-token-secret $CF_ACCESS_CLIENT_SECRET 127.0.0.1:0
           EOF
 
+      - name: Show cloudflared help for access tcp
+        run: cloudflared access tcp --help
       - name: Debug tunnel env vars
-        run: env | grep -E '^TUNNEL_SERVICE_' || true          
-        
+        run: env | grep -E '^TUNNEL_SERVICE_' || true
+
       - name: Test SSH
         env:
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}

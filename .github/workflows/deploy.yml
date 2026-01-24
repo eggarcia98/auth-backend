@@ -32,8 +32,7 @@ jobs:
             User ${{ secrets.SSH_USER }}
             Port 22
             StrictHostKeyChecking no
-            ProxyCommand env -u TUNNEL_SERVICE_URL -u TUNNEL_SERVICE_HOSTNAME -u TUNNEL_SERVICE_DESTINATION TUNNEL_SERVICE_URL=127.0.0.1:0 cloudflared access tcp --hostname %h --service-token-id $CF_ACCESS_CLIENT_ID --service-token-secret $CF_ACCESS_CLIENT_SECRET
-
+            ProxyCommand cloudflared access tcp --hostname %h --url 127.0.0.1:0 --service-token-id $CF_ACCESS_CLIENT_ID --service-token-secret $CF_ACCESS_CLIENT_SECRET
           EOF
 
       - name: Debug tunnel env vars

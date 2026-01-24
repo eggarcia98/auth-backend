@@ -9,7 +9,8 @@
         "build": "tsc",
         "test": "vitest",
         "type-check": "tsc --noEmit",
-        "start": "node dist/server.js"
+        "start": "node dist/server.js",
+        "start:local": "tsx watch src/server.ts"
     },
     "keywords": [],
     "author": "",

@@ -55,10 +55,12 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           APP_DIR: ${{ secrets.APP_DIR }}
         run: |
-          ssh -o StrictHostKeyChecking=no -p 2222 "$SSH_USER@127.0.0.1" << EOF
+          ssh -o StrictHostKeyChecking=no -p 2222 "$SSH_USER@127.0.0.1" "APP_DIR='${APP_DIR}' bash -s" << 'EOF'
             set -e
             cd "$APP_DIR"
             git pull
+            pnpm -v
+            command -v pm2 >/dev/null 2>&1 || npm i -g pm2
             pnpm install
             pm2 restart auth-backend || pm2 start pnpm --name auth-backend -- run dev
             pm2 save

@@ -58,5 +58,6 @@ jobs:
             set -e
             cd ${{ secrets.APP_DIR }}
             git pull
-            docker compose up -d --build
+            pnpm install
+            pnpm run dev 
           EOF

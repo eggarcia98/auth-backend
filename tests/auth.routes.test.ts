@@ -455,4 +455,8 @@ describe("Auth Routes - Login and Refresh", () => {
             expect(newAccessTokenCookie?.value).toBe("refreshed-access-token");
         });
     });
+
+    it("should fail intentionally for workflow test", () => {
+        expect(true).toBe(false);
+    });
 });

@@ -40,6 +40,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.STAGE_TESTS_ACTION_TOKEN }}
 
       - name: Configure git
         run: |

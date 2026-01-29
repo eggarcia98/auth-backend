@@ -23,6 +23,7 @@ export class AuthController {
         reply.status(201).send({
             success: true,
             data: result,
+            message: "User registered successfully",
         } as ApiResponse);
     }
 

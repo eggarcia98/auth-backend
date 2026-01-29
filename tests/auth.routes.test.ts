@@ -456,7 +456,5 @@ describe("Auth Routes - Login and Refresh", () => {
         });
     });
 
-    it("should fail intentionally for workflow test", () => {
-        expect(true).toBe(false);
-    });
+   
 });

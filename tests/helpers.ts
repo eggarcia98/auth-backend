@@ -10,8 +10,10 @@ export const createMockSupabaseClient = () => {
         auth: {
             signUp: vi.fn(),
             signInWithPassword: vi.fn(),
+            signInWithOAuth: vi.fn(),
             signInWithOtp: vi.fn(),
             verifyOtp: vi.fn(),
+            exchangeCodeForSession: vi.fn(),
             refreshSession: vi.fn(),
             resetPasswordForEmail: vi.fn(),
             updateUser: vi.fn(),

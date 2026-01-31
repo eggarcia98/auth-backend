@@ -15,7 +15,7 @@ export class OAuthService {
             const { data, error } = await this.supabase.auth.signInWithOAuth({
                 provider,
                 options: {
-                    redirectTo: `${this.env.FRONTEND_URL}/auth/callback/${provider}`,
+                    redirectTo: `${this.env.FRONTEND_URL}/oauth/${provider}`,
                     scopes: this.getProviderScopes(provider),
                 },
             });

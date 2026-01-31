@@ -19,6 +19,20 @@ describe("Auth Routes - Login and Refresh", () => {
     let authService: AuthService;
     let authController: AuthController;
     let oauthService: OAuthService;
+    const mockEnv = {
+        SUPABASE_URL: "http://localhost:54321",
+        SUPABASE_ANON_KEY: "anon-key",
+        SUPABASE_SERVICE_ROLE_KEY: "service-key",
+        JWT_SECRET: "a".repeat(32),
+        GOOGLE_CLIENT_ID: "google-client-id",
+        GOOGLE_CLIENT_SECRET: "google-client-secret",
+        APPLE_CLIENT_ID: "apple-client-id",
+        APPLE_TEAM_ID: "apple-team-id",
+        APPLE_KEY_ID: "apple-key-id",
+        APPLE_PRIVATE_KEY: "apple-private-key",
+        FRONTEND_URL: "http://localhost:3000",
+        ENVIRONMENT: "development",
+    };
 
     beforeEach(async () => {
         // Reset all mocks
@@ -33,7 +47,7 @@ describe("Auth Routes - Login and Refresh", () => {
             mockSupabase as any,
             mockAdminSupabase as any
         );
-        oauthService = new OAuthService(mockSupabase as any);
+        oauthService = new OAuthService(mockSupabase as any, mockEnv as any);
         authController = new AuthController(authService, oauthService);
 
         // Create test server
@@ -397,6 +411,95 @@ describe("Auth Routes - Login and Refresh", () => {
 
             expect(accessTokenCookie?.value).toBe("new-access-123");
             expect(refreshTokenCookie?.value).toBe("new-refresh-456");
+        });
+    });
+
+    describe("OAuth routes", () => {
+        it("should return authorization URL for Google", async () => {
+            mockSupabase.auth.signInWithOAuth.mockResolvedValue({
+                data: { url: "https://accounts.google.com/o/oauth2/auth" },
+                error: null,
+            });
+
+            const response = await fastify.inject({
+                method: "GET",
+                url: "/oauth/google",
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(true);
+            expect(body.data.url).toBe(
+                "https://accounts.google.com/o/oauth2/auth"
+            );
+
+            expect(mockSupabase.auth.signInWithOAuth).toHaveBeenCalledWith({
+                provider: "google",
+                options: {
+                    redirectTo: "http://localhost:3000/oauth/google",
+                    scopes: "email profile",
+                },
+            });
+        });
+
+        it("should return 400 when OAuth URL generation fails", async () => {
+            mockSupabase.auth.signInWithOAuth.mockResolvedValue({
+                data: { url: null },
+                error: { message: "Failed" },
+            });
+
+            const response = await fastify.inject({
+                method: "GET",
+                url: "/oauth/google",
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(false);
+            expect(body.error.code).toBe("VALIDATION_ERROR");
+        });
+
+        it("should handle OAuth callback and set cookies", async () => {
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/oauth/google/callback",
+                payload: {
+                    access_token: "mock-access-token-123",
+                    refresh_token: "mock-refresh-token-456",
+                },
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(true);
+            expect(body.message).toBe(
+                "OAuth authentication successful, tokens set in cookies"
+            );
+            expect(body.redirect).toBe("/");
+
+            // Check cookies were set
+            const cookies = response.cookies;
+            const accessTokenCookie = cookies.find(
+                (c) => c.name === "accessToken"
+            );
+            const refreshTokenCookie = cookies.find(
+                (c) => c.name === "refreshToken"
+            );
+
+            expect(accessTokenCookie?.value).toBe("mock-access-token-123");
+            expect(refreshTokenCookie?.value).toBe("mock-refresh-token-456");
+        });
+
+        it("should return 400 for missing OAuth callback tokens", async () => {
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/oauth/google/callback",
+                payload: {},
+            });
+
+            expect(response.statusCode).toBe(400);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(false);
         });
     });
 

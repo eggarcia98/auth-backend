@@ -24,8 +24,6 @@ describe("Auth Routes - Login and Refresh", () => {
         SUPABASE_ANON_KEY: "anon-key",
         SUPABASE_SERVICE_ROLE_KEY: "service-key",
         JWT_SECRET: "a".repeat(32),
-        GOOGLE_CLIENT_ID: "google-client-id",
-        GOOGLE_CLIENT_SECRET: "google-client-secret",
         APPLE_CLIENT_ID: "apple-client-id",
         APPLE_TEAM_ID: "apple-team-id",
         APPLE_KEY_ID: "apple-key-id",

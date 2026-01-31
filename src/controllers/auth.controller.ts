@@ -180,12 +180,30 @@ export class AuthController {
         reply: FastifyReply
     ): Promise<void> {
         const { provider } = request.params as { provider: OAuthProvider };
-        const { code } = request.body as OAuthCallbackRequest;
-        const result = await this.oauthService.handleCallback(provider, code);
+        const { access_token, refresh_token } = request.body as {
+            access_token: string;
+            refresh_token: string;
+        };
+
+        // Set auth tokens in cookies
+        reply.setCookie("accessToken", access_token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: 3600 * 1000, // 1 hour
+        });
+
+        reply.setCookie("refreshToken", refresh_token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
 
         reply.send({
             success: true,
-            data: result,
+            message: "OAuth authentication successful, tokens set in cookies",
+            redirect: "/",
         } as ApiResponse);
     }
 

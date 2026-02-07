@@ -6,6 +6,7 @@ export function createSupabaseClient(env: Environment): SupabaseClient {
         auth: {
             autoRefreshToken: true,
             persistSession: false,
+            flowType: "pkce",
         },
     });
 }

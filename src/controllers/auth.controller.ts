@@ -180,20 +180,20 @@ export class AuthController {
         reply: FastifyReply
     ): Promise<void> {
         const { provider } = request.params as { provider: OAuthProvider };
-        const { access_token, refresh_token } = request.body as {
-            access_token: string;
-            refresh_token: string;
-        };
+        const { code } = request.body as OAuthCallbackRequest;
+
+        // Exchange authorization code for session using PKCE
+        const result = await this.oauthService.handleCallback(provider, code);
 
         // Set auth tokens in cookies
-        reply.setCookie("accessToken", access_token, {
+        reply.setCookie("accessToken", result.tokens.accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
-            maxAge: 3600 * 1000, // 1 hour
+            maxAge: result.tokens.expiresIn * 1000,
         });
 
-        reply.setCookie("refreshToken", refresh_token, {
+        reply.setCookie("refreshToken", result.tokens.refreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
@@ -202,8 +202,8 @@ export class AuthController {
 
         reply.send({
             success: true,
+            data: { user: result.user },
             message: "OAuth authentication successful, tokens set in cookies",
-            redirect: "/",
         } as ApiResponse);
     }
 

@@ -15,9 +15,10 @@ export class OAuthService {
             const { data, error } = await this.supabase.auth.signInWithOAuth({
                 provider,
                 options: {
-                    redirectTo: `${this.env.FRONTEND_URL}/oauth/${provider}`,
+                    redirectTo: `${this.env.FRONTEND_URL}/auth/${provider}/callback`,
                     scopes: this.getProviderScopes(provider),
                 },
+                
             });
 
             if (error || !data.url) {
@@ -26,7 +27,7 @@ export class OAuthService {
                 );
             }
 
-            logger.info("OAuth authorization URL generated", { provider });
+            logger.info("OAuth authorization URL generated with PKCE", { provider });
 
             return data.url;
         } catch (error) {

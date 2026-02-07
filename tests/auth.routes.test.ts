@@ -413,7 +413,7 @@ describe("Auth Routes - Login and Refresh", () => {
     });
 
     describe("OAuth routes", () => {
-        it("should return authorization URL for Google", async () => {
+        it("should return authorization URL for Google with PKCE", async () => {
             mockSupabase.auth.signInWithOAuth.mockResolvedValue({
                 data: { url: "https://accounts.google.com/o/oauth2/auth" },
                 error: null,
@@ -434,7 +434,7 @@ describe("Auth Routes - Login and Refresh", () => {
             expect(mockSupabase.auth.signInWithOAuth).toHaveBeenCalledWith({
                 provider: "google",
                 options: {
-                    redirectTo: "http://localhost:3000/oauth/google",
+                    redirectTo: "http://localhost:3000/auth/google/callback",
                     scopes: "email profile",
                 },
             });
@@ -457,13 +457,24 @@ describe("Auth Routes - Login and Refresh", () => {
             expect(body.error.code).toBe("VALIDATION_ERROR");
         });
 
-        it("should handle OAuth callback and set cookies", async () => {
+        it("should handle OAuth callback with PKCE code exchange", async () => {
+            const mockUser = createMockUser({
+                app_metadata: { provider: "google" },
+            });
+            
+            mockSupabase.auth.exchangeCodeForSession.mockResolvedValue({
+                data: {
+                    user: mockUser,
+                    session: createMockSession(),
+                },
+                error: null,
+            });
+
             const response = await fastify.inject({
                 method: "POST",
                 url: "/oauth/google/callback",
                 payload: {
-                    access_token: "mock-access-token-123",
-                    refresh_token: "mock-refresh-token-456",
+                    code: "mock-authorization-code-xyz",
                 },
             });
 
@@ -473,7 +484,13 @@ describe("Auth Routes - Login and Refresh", () => {
             expect(body.message).toBe(
                 "OAuth authentication successful, tokens set in cookies"
             );
-            expect(body.redirect).toBe("/");
+            expect(body.data.user).toBeDefined();
+            expect(body.data.user.email).toBe("test@example.com");
+
+            // Verify exchangeCodeForSession was called
+            expect(mockSupabase.auth.exchangeCodeForSession).toHaveBeenCalledWith(
+                "mock-authorization-code-xyz"
+            );
 
             // Check cookies were set
             const cookies = response.cookies;
@@ -488,7 +505,7 @@ describe("Auth Routes - Login and Refresh", () => {
             expect(refreshTokenCookie?.value).toBe("mock-refresh-token-456");
         });
 
-        it("should return 400 for missing OAuth callback tokens", async () => {
+        it("should return 400 for missing OAuth callback code", async () => {
             const response = await fastify.inject({
                 method: "POST",
                 url: "/oauth/google/callback",

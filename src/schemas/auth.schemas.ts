@@ -30,8 +30,5 @@ export const resetPasswordSchema = z.object({
 });
 
 export const oauthCallbackSchema = z.object({
-    access_token: z.string().min(1),
-    refresh_token: z.string().min(1),
-    provider_token: z.string().optional(),
-    expires_in: z.string().optional(),
+    code: z.string().min(1, "Authorization code is required"),
 });

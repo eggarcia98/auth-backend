@@ -31,10 +31,7 @@ export interface SignupRequest {
 }
 
 export interface OAuthCallbackRequest {
-    access_token: string;
-    refresh_token: string;
-    provider_token?: string;
-    expires_in?: string;
+    code: string;
 }
 
 export type OAuthProvider = "google" | "apple";

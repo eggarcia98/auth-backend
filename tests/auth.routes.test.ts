@@ -413,7 +413,7 @@ describe("Auth Routes - Login and Refresh", () => {
     });
 
     describe("OAuth routes", () => {
-        it("should return authorization URL for Google", async () => {
+        it("should return authorization URL for Google with PKCE", async () => {
             mockSupabase.auth.signInWithOAuth.mockResolvedValue({
                 data: { url: "https://accounts.google.com/o/oauth2/auth" },
                 error: null,
@@ -434,7 +434,7 @@ describe("Auth Routes - Login and Refresh", () => {
             expect(mockSupabase.auth.signInWithOAuth).toHaveBeenCalledWith({
                 provider: "google",
                 options: {
-                    redirectTo: "http://localhost:3000/oauth/google",
+                    redirectTo: "http://localhost:3000/auth/google/callback",
                     scopes: "email profile",
                 },
             });
@@ -457,13 +457,24 @@ describe("Auth Routes - Login and Refresh", () => {
             expect(body.error.code).toBe("VALIDATION_ERROR");
         });
 
-        it("should handle OAuth callback and set cookies", async () => {
+        it("should handle OAuth callback with PKCE code exchange", async () => {
+            const mockUser = createMockUser({
+                app_metadata: { provider: "google" },
+            });
+            
+            mockSupabase.auth.exchangeCodeForSession.mockResolvedValue({
+                data: {
+                    user: mockUser,
+                    session: createMockSession(),
+                },
+                error: null,
+            });
+
             const response = await fastify.inject({
                 method: "POST",
                 url: "/oauth/google/callback",
                 payload: {
-                    access_token: "mock-access-token-123",
-                    refresh_token: "mock-refresh-token-456",
+                    code: "mock-authorization-code-xyz",
                 },
             });
 
@@ -473,7 +484,13 @@ describe("Auth Routes - Login and Refresh", () => {
             expect(body.message).toBe(
                 "OAuth authentication successful, tokens set in cookies"
             );
-            expect(body.redirect).toBe("/");
+            expect(body.data.user).toBeDefined();
+            expect(body.data.user.email).toBe("test@example.com");
+
+            // Verify exchangeCodeForSession was called
+            expect(mockSupabase.auth.exchangeCodeForSession).toHaveBeenCalledWith(
+                "mock-authorization-code-xyz"
+            );
 
             // Check cookies were set
             const cookies = response.cookies;
@@ -488,7 +505,7 @@ describe("Auth Routes - Login and Refresh", () => {
             expect(refreshTokenCookie?.value).toBe("mock-refresh-token-456");
         });
 
-        it("should return 400 for missing OAuth callback tokens", async () => {
+        it("should return 400 for missing OAuth callback code", async () => {
             const response = await fastify.inject({
                 method: "POST",
                 url: "/oauth/google/callback",
@@ -554,6 +571,217 @@ describe("Auth Routes - Login and Refresh", () => {
                 (c) => c.name === "accessToken"
             );
             expect(newAccessTokenCookie?.value).toBe("refreshed-access-token");
+        });
+    });
+
+    describe("POST /validate-token", () => {
+        it("should validate a valid access token", async () => {
+            const mockUser = createMockUser();
+            mockSupabase.auth.getUser.mockResolvedValue({
+                data: { user: mockUser },
+                error: null,
+            });
+
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/validate-token",
+                headers: {
+                    authorization: `Bearer mock-access-token-123`,
+                },
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(true);
+            expect(body.data.tokenRefreshed).toBe(false);
+            expect(body.message).toBe("Token is valid");
+            expect(body.data.user).toBeDefined();
+            expect(body.data.user.email).toBe("test@example.com");
+        });
+
+        it("should validate token from cookies", async () => {
+            const mockUser = createMockUser();
+            mockSupabase.auth.getUser.mockResolvedValue({
+                data: { user: mockUser },
+                error: null,
+            });
+
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/validate-token",
+                cookies: {
+                    accessToken: "mock-access-token-123",
+                },
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(true);
+            expect(body.data.tokenRefreshed).toBe(false);
+        });
+
+        it("should refresh token when access token is invalid", async () => {
+            const mockUser = createMockUser();
+            
+            // First call to getUser fails (invalid access token)
+            mockSupabase.auth.getUser.mockRejectedValueOnce(
+                new Error("Invalid token")
+            );
+
+            // Second call to refreshSession succeeds
+            mockSupabase.auth.refreshSession.mockResolvedValue({
+                data: {
+                    user: mockUser,
+                    session: createMockSession({
+                        access_token: "refreshed-access-token",
+                        refresh_token: "refreshed-refresh-token",
+                    }),
+                },
+                error: null,
+            });
+
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/validate-token",
+                headers: {
+                    authorization: `Bearer invalid-token`,
+                },
+                cookies: {
+                    refreshToken: "mock-refresh-token-456",
+                },
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(true);
+            expect(body.data.tokenRefreshed).toBe(true);
+            expect(body.message).toBe("Token refreshed successfully");
+
+            // Check new cookies were set
+            const newAccessTokenCookie = response.cookies.find(
+                (c) => c.name === "accessToken"
+            );
+            expect(newAccessTokenCookie?.value).toBe("refreshed-access-token");
+        });
+
+        it("should clear cookies when refresh token is invalid", async () => {
+            // First call fails (invalid access token)
+            mockSupabase.auth.getUser.mockRejectedValueOnce(
+                new Error("Invalid token")
+            );
+
+            // Second call fails (invalid refresh token)
+            mockSupabase.auth.refreshSession.mockResolvedValue({
+                data: { user: null, session: null },
+                error: { message: "Invalid refresh token" },
+            });
+
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/validate-token",
+                headers: {
+                    authorization: `Bearer invalid-token`,
+                },
+                cookies: {
+                    refreshToken: "invalid-refresh-token",
+                },
+            });
+
+            expect(response.statusCode).toBe(401);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(false);
+            expect(body.error).toContain("Refresh token invalid or expired");
+
+            // Check cookies were cleared
+            const accessTokenCookie = response.cookies.find(
+                (c) => c.name === "accessToken"
+            );
+            const refreshTokenCookie = response.cookies.find(
+                (c) => c.name === "refreshToken"
+            );
+            expect(accessTokenCookie?.value).toBe("");
+            expect(refreshTokenCookie?.value).toBe("");
+        });
+
+        it("should return 401 when no tokens are provided", async () => {
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/validate-token",
+            });
+
+            expect(response.statusCode).toBe(401);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(false);
+            expect(body.error).toBe("No tokens provided");
+
+            // Check cookies were cleared
+            const accessTokenCookie = response.cookies.find(
+                (c) => c.name === "accessToken"
+            );
+            const refreshTokenCookie = response.cookies.find(
+                (c) => c.name === "refreshToken"
+            );
+            expect(accessTokenCookie?.value).toBe("");
+            expect(refreshTokenCookie?.value).toBe("");
+        });
+
+        it("should clear cookies when access token is expired and no refresh token available", async () => {
+            mockSupabase.auth.getUser.mockRejectedValueOnce(
+                new Error("Invalid token")
+            );
+
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/validate-token",
+                headers: {
+                    authorization: `Bearer invalid-token`,
+                },
+            });
+
+            expect(response.statusCode).toBe(401);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(false);
+            expect(body.error).toContain("Access token expired");
+
+            // Check cookies were cleared
+            const accessTokenCookie = response.cookies.find(
+                (c) => c.name === "accessToken"
+            );
+            expect(accessTokenCookie?.value).toBe("");
+        });
+
+        it("should handle server errors gracefully", async () => {
+            // Mock both getUser and refreshSession to fail with non-auth errors
+            mockSupabase.auth.getUser.mockRejectedValueOnce(
+                new Error("Server error")
+            );
+            
+            // Provide refresh token so it tries to refresh
+            mockSupabase.auth.refreshSession.mockRejectedValueOnce(
+                new Error("Database error")
+            );
+
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/validate-token",
+                headers: {
+                    authorization: `Bearer mock-token`,
+                },
+                cookies: {
+                    refreshToken: "mock-refresh-token",
+                },
+            });
+
+            expect(response.statusCode).toBe(401);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(false);
+            expect(body.error).toContain("Refresh token invalid or expired");
+
+            // Check cookies were cleared
+            const accessTokenCookie = response.cookies.find(
+                (c) => c.name === "accessToken"
+            );
+            expect(accessTokenCookie?.value).toBe("");
         });
     });
 

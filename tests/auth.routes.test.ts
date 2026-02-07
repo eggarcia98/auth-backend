@@ -557,5 +557,216 @@ describe("Auth Routes - Login and Refresh", () => {
         });
     });
 
+    describe("POST /validate-token", () => {
+        it("should validate a valid access token", async () => {
+            const mockUser = createMockUser();
+            mockSupabase.auth.getUser.mockResolvedValue({
+                data: { user: mockUser },
+                error: null,
+            });
+
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/validate-token",
+                headers: {
+                    authorization: `Bearer mock-access-token-123`,
+                },
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(true);
+            expect(body.data.tokenRefreshed).toBe(false);
+            expect(body.message).toBe("Token is valid");
+            expect(body.data.user).toBeDefined();
+            expect(body.data.user.email).toBe("test@example.com");
+        });
+
+        it("should validate token from cookies", async () => {
+            const mockUser = createMockUser();
+            mockSupabase.auth.getUser.mockResolvedValue({
+                data: { user: mockUser },
+                error: null,
+            });
+
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/validate-token",
+                cookies: {
+                    accessToken: "mock-access-token-123",
+                },
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(true);
+            expect(body.data.tokenRefreshed).toBe(false);
+        });
+
+        it("should refresh token when access token is invalid", async () => {
+            const mockUser = createMockUser();
+            
+            // First call to getUser fails (invalid access token)
+            mockSupabase.auth.getUser.mockRejectedValueOnce(
+                new Error("Invalid token")
+            );
+
+            // Second call to refreshSession succeeds
+            mockSupabase.auth.refreshSession.mockResolvedValue({
+                data: {
+                    user: mockUser,
+                    session: createMockSession({
+                        access_token: "refreshed-access-token",
+                        refresh_token: "refreshed-refresh-token",
+                    }),
+                },
+                error: null,
+            });
+
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/validate-token",
+                headers: {
+                    authorization: `Bearer invalid-token`,
+                },
+                cookies: {
+                    refreshToken: "mock-refresh-token-456",
+                },
+            });
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(true);
+            expect(body.data.tokenRefreshed).toBe(true);
+            expect(body.message).toBe("Token refreshed successfully");
+
+            // Check new cookies were set
+            const newAccessTokenCookie = response.cookies.find(
+                (c) => c.name === "accessToken"
+            );
+            expect(newAccessTokenCookie?.value).toBe("refreshed-access-token");
+        });
+
+        it("should clear cookies when refresh token is invalid", async () => {
+            // First call fails (invalid access token)
+            mockSupabase.auth.getUser.mockRejectedValueOnce(
+                new Error("Invalid token")
+            );
+
+            // Second call fails (invalid refresh token)
+            mockSupabase.auth.refreshSession.mockResolvedValue({
+                data: { user: null, session: null },
+                error: { message: "Invalid refresh token" },
+            });
+
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/validate-token",
+                headers: {
+                    authorization: `Bearer invalid-token`,
+                },
+                cookies: {
+                    refreshToken: "invalid-refresh-token",
+                },
+            });
+
+            expect(response.statusCode).toBe(401);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(false);
+            expect(body.error).toContain("Refresh token invalid or expired");
+
+            // Check cookies were cleared
+            const accessTokenCookie = response.cookies.find(
+                (c) => c.name === "accessToken"
+            );
+            const refreshTokenCookie = response.cookies.find(
+                (c) => c.name === "refreshToken"
+            );
+            expect(accessTokenCookie?.value).toBe("");
+            expect(refreshTokenCookie?.value).toBe("");
+        });
+
+        it("should return 401 when no tokens are provided", async () => {
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/validate-token",
+            });
+
+            expect(response.statusCode).toBe(401);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(false);
+            expect(body.error).toBe("No tokens provided");
+
+            // Check cookies were cleared
+            const accessTokenCookie = response.cookies.find(
+                (c) => c.name === "accessToken"
+            );
+            const refreshTokenCookie = response.cookies.find(
+                (c) => c.name === "refreshToken"
+            );
+            expect(accessTokenCookie?.value).toBe("");
+            expect(refreshTokenCookie?.value).toBe("");
+        });
+
+        it("should clear cookies when access token is expired and no refresh token available", async () => {
+            mockSupabase.auth.getUser.mockRejectedValueOnce(
+                new Error("Invalid token")
+            );
+
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/validate-token",
+                headers: {
+                    authorization: `Bearer invalid-token`,
+                },
+            });
+
+            expect(response.statusCode).toBe(401);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(false);
+            expect(body.error).toContain("Access token expired");
+
+            // Check cookies were cleared
+            const accessTokenCookie = response.cookies.find(
+                (c) => c.name === "accessToken"
+            );
+            expect(accessTokenCookie?.value).toBe("");
+        });
+
+        it("should handle server errors gracefully", async () => {
+            // Mock both getUser and refreshSession to fail with non-auth errors
+            mockSupabase.auth.getUser.mockRejectedValueOnce(
+                new Error("Server error")
+            );
+            
+            // Provide refresh token so it tries to refresh
+            mockSupabase.auth.refreshSession.mockRejectedValueOnce(
+                new Error("Database error")
+            );
+
+            const response = await fastify.inject({
+                method: "POST",
+                url: "/validate-token",
+                headers: {
+                    authorization: `Bearer mock-token`,
+                },
+                cookies: {
+                    refreshToken: "mock-refresh-token",
+                },
+            });
+
+            expect(response.statusCode).toBe(401);
+            const body = JSON.parse(response.body);
+            expect(body.success).toBe(false);
+            expect(body.error).toContain("Refresh token invalid or expired");
+
+            // Check cookies were cleared
+            const accessTokenCookie = response.cookies.find(
+                (c) => c.name === "accessToken"
+            );
+            expect(accessTokenCookie?.value).toBe("");
+        });
+    });
+
    
 });

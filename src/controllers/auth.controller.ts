@@ -213,4 +213,95 @@ export class AuthController {
             data: { user: request.user },
         } as ApiResponse);
     }
+
+    async validateAndRefreshToken(
+        request: FastifyRequest,
+        reply: FastifyReply
+    ): Promise<void> {
+        try {
+            const accessToken =
+                request.headers.authorization?.substring(7) ||
+                request.cookies.accessToken;
+            const refreshToken = request.cookies.refreshToken || "";
+
+            if (!accessToken && !refreshToken) {
+                reply.clearCookie("accessToken");
+                reply.clearCookie("refreshToken");
+                reply.status(401).send({
+                    success: false,
+                    error: "No tokens provided",
+                });
+                return;
+            }
+
+            // Try to verify current access token
+            if (accessToken) {
+                try {
+                    const user = await this.authService.verifyToken(
+                        accessToken
+                    );
+                    reply.send({
+                        success: true,
+                        data: { user, tokenRefreshed: false },
+                        message: "Token is valid",
+                    } as ApiResponse);
+                    return;
+                } catch (error) {
+                    // Access token is invalid, try to refresh
+                    if (!refreshToken) {
+                        reply.clearCookie("accessToken");
+                        reply.clearCookie("refreshToken");
+                        reply.status(401).send({
+                            success: false,
+                            error: "Access token expired and no refresh token available",
+                        });
+                        return;
+                    }
+                }
+            }
+
+            // Attempt to refresh token using refresh token
+            try {
+                const result =
+                    await this.authService.refreshToken(refreshToken);
+
+                // Set new tokens in cookies
+                reply.setCookie("accessToken", result.tokens.accessToken, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === "production",
+                    sameSite: "strict",
+                    maxAge: result.tokens.expiresIn,
+                });
+
+                reply.setCookie("refreshToken", result.tokens.refreshToken, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === "production",
+                    sameSite: "strict",
+                    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+                });
+
+                reply.send({
+                    success: true,
+                    data: { user: result.user, tokenRefreshed: true },
+                    message: "Token refreshed successfully",
+                } as ApiResponse);
+            } catch (error) {
+                // Refresh token is invalid or expired
+                reply.clearCookie("accessToken");
+                reply.clearCookie("refreshToken");
+                reply.status(401).send({
+                    success: false,
+                    error: "Refresh token invalid or expired. Please login again.",
+                });
+            }
+        } catch (error) {
+            // Unexpected error
+            reply.clearCookie("accessToken");
+            reply.clearCookie("refreshToken");
+            reply.status(500).send({
+                success: false,
+                error: "Token validation failed",
+            });
+        }
+    }
 }

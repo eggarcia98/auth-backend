@@ -77,4 +77,10 @@ export async function authRoutes(
         { preHandler: authMiddleware },
         authController.me.bind(authController)
     );
+
+    // Validate and refresh token endpoint
+    fastify.post(
+        "/validate-token",
+        authController.validateAndRefreshToken.bind(authController)
+    );
 }

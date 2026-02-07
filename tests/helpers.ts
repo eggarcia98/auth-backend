@@ -17,6 +17,7 @@ export const createMockSupabaseClient = () => {
             refreshSession: vi.fn(),
             resetPasswordForEmail: vi.fn(),
             updateUser: vi.fn(),
+            getUser: vi.fn(),
             admin: {
                 signOut: vi.fn(),
             },

@@ -12,6 +12,10 @@ export class OAuthService {
 
     async getAuthorizationUrl(provider: OAuthProvider): Promise<string> {
         try {
+
+            console.log("URL generation env:", {
+                FRONTEND_URL: this.env.FRONTEND_URL,
+            });
             const { data, error } = await this.supabase.auth.signInWithOAuth({
                 provider,
                 options: {

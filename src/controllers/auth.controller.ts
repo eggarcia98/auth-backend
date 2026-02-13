@@ -189,20 +189,20 @@ export class AuthController {
         reply.setCookie("accessToken", result.tokens.accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            sameSite: "lax",
             maxAge: result.tokens.expiresIn * 1000,
         });
 
         reply.setCookie("refreshToken", result.tokens.refreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            sameSite: "lax",
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         });
 
         reply.send({
             success: true,
-            data: { user: result.user },
+            data: { user: result.user, tokens: result.tokens },
             message: "OAuth authentication successful, tokens set in cookies",
         } as ApiResponse);
     }

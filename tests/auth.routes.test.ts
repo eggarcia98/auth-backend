@@ -434,7 +434,7 @@ describe("Auth Routes - Login and Refresh", () => {
             expect(mockSupabase.auth.signInWithOAuth).toHaveBeenCalledWith({
                 provider: "google",
                 options: {
-                    redirectTo: "http://localhost:3000/auth/callback",
+                    redirectTo: "http://localhost:3000/auth/google/callback",
                     scopes: "email profile",
                 },
             });

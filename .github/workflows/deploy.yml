@@ -53,5 +53,5 @@ jobs:
             set -e
             cd "$APP_DIR"
             git pull
-            docker compose up -d
+            docker compose up --build --no-cache -d
           EOF

@@ -22,3 +22,13 @@ ENV PORT=8080
 
 # Cloud Run listens on $PORT; Fastify binds to 0.0.0.0
 CMD ["node", "dist/server.js"]
+
+
+# Build TypeScript
+RUN pnpm run build
+
+ENV NODE_ENV=production
+ENV PORT=8080
+
+# Cloud Run listens on $PORT; Fastify binds to 0.0.0.0
+CMD ["node", "dist/server.js"]
